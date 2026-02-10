@@ -1,5 +1,8 @@
+/**
+ * Punkt auf LED MATRIX bewegen
+ */
 input.onGesture(Gesture.TiltRight, function () {
-    if (Modus == "Set_Var" && !(4 <= XAktuell)) {
+    if ((Modus == "Set_Var" || Modus == "Send") && !(4 <= XAktuell)) {
         XAktuell += 1
         Display()
     }
@@ -7,6 +10,21 @@ input.onGesture(Gesture.TiltRight, function () {
 input.onButtonEvent(Button.AB, input.buttonEventValue(ButtonEvent.LongClick), function () {
     Change_Mode("Set_Mode")
     basic.showNumber(Mode_num)
+})
+radio.onReceivedNumber(function (receivedNumber) {
+    if (Modus == "Recieve") {
+        if (receivedNumber == startKey) {
+            empfangAktiv = true
+            empfangenesBild = []
+        } else if (empfangAktiv) {
+            empfangenesBild.push(receivedNumber)
+            if (empfangenesBild.length == matrixPixelAmount) {
+                gespeichertesBild = empfangenesBild
+                zeigeGespeichertesBild(gespeichertesBild)
+                empfangAktiv = false
+            }
+        }
+    }
 })
 function ExternLEDSchalten (num: number, Pin: string) {
     if (Pin == "P0") {
@@ -24,8 +42,9 @@ function ExternLEDSchalten (num: number, Pin: string) {
     }
 }
 input.onPinTouchEvent(TouchPin.P1, input.buttonEventDown(), function () {
-    basic.showNumber(Schalten2)
-    Display()
+    if (Modus == "Test") {
+        pins.digitalWritePin(DigitalPin.P1, 1 - pins.digitalReadPin(DigitalPin.P1))
+    }
 })
 input.onButtonEvent(Button.A, input.buttonEventClick(), function () {
     if (Modus == "Set_Mode") {
@@ -41,10 +60,12 @@ input.onButtonEvent(Button.A, input.buttonEventClick(), function () {
         }
     } else if (Modus == "Auto") {
         basic.showNumber(pins.analogReadPin(AnalogReadWritePin.P2))
+    } else if (Modus == "Send") {
+        gespeichertesBild = leseLedMatrix()
     }
 })
 input.onGesture(Gesture.TiltLeft, function () {
-    if (Modus == "Set_Var" && !(XAktuell <= 0)) {
+    if ((Modus == "Set_Var" || Modus == "Send") && !(XAktuell <= 0)) {
         XAktuell += -1
         Display()
     }
@@ -71,8 +92,16 @@ input.onButtonEvent(Button.AB, input.buttonEventClick(), function () {
             Change_Mode("Set_Var")
             Display()
         } else if (Mode_num == 3) {
+            Change_Mode("Test")
+            Schreibe_digitalen_Wert("P0,P1,P,P3", 1)
+        } else if (Mode_num == 4) {
             Change_Mode("Set_Mode")
             basic.showNumber(Mode_num)
+        } else if (Mode_num == 5) {
+            Change_Mode("Send")
+            Display()
+        } else if (Mode_num == 6) {
+            Change_Mode("Recieve")
         }
     }
 })
@@ -88,8 +117,8 @@ input.onButtonEvent(Button.B, input.buttonEventClick(), function () {
         } else {
             RGBLED(1, basic.rgb(255, 0, 0), 1000)
         }
-    } else if (Modus == "") {
-    	
+    } else if (Modus == "Send") {
+        sendeBildUeberFunk(gespeichertesBild)
     }
 })
 function Display () {
@@ -102,29 +131,76 @@ function Display () {
     }
 }
 input.onGesture(Gesture.LogoDown, function () {
-    if (Modus == "Set_Var" && !(YAktuell <= 0)) {
+    if ((Modus == "Set_Var" || Modus == "Send") && !(YAktuell <= 0)) {
         YAktuell += -1
         Display()
     }
 })
 input.onPinTouchEvent(TouchPin.P0, input.buttonEventDown(), function () {
-    basic.showNumber(Schalten1)
-    Display()
+    if (Modus == "Test") {
+        pins.digitalWritePin(DigitalPin.P0, 1 - pins.digitalReadPin(DigitalPin.P0))
+    }
 })
+function sendeBildUeberFunk (matrix: any[]) {
+    if (matrix.length != matrixPixelAmount) {
+        RGBLED(1, basic.rgb(255, 0, 0), 500)
+        return
+    }
+    radio.sendNumber(startKey)
+    for (let i = 0; i <= matrix.length - 1; i++) {
+        radio.sendNumber(matrix[i])
+        basic.pause(20)
+    }
+    RGBLED(1, basic.rgb(0, 255, 0), 500)
+}
+input.onPinTouchEvent(TouchPin.P2, input.buttonEventDown(), function () {
+    if (Modus == "Test") {
+        pins.digitalWritePin(DigitalPin.P2, 1 - pins.digitalReadPin(DigitalPin.P2))
+    }
+})
+function zeigeGespeichertesBild (matrix: any[]) {
+    if (matrix.length != matrixPixelAmount) {
+        RGBLED(1, basic.rgb(255, 0, 0), 500)
+        return
+    }
+    led.stopAnimation()
+    for (let y = 0; y <= matrixHoehe - 1; y++) {
+        for (let x = 0; x <= matrixBreite - 1; x++) {
+            index = y * matrixBreite + x
+            led.plotBrightness(x, y, matrix[index])
+        }
+    }
+    RGBLED(1, basic.rgb(0, 255, 0), 500)
+}
 input.onGesture(Gesture.LogoUp, function () {
-    if (Modus == "Set_Var" && !(4 <= YAktuell)) {
+    if ((Modus == "Set_Var" || Modus == "Send") && !(4 <= YAktuell)) {
         YAktuell += 1
         Display()
     }
 })
+function leseLedMatrix () {
+    let matrix: number[] = []
+    for (let y = 0; y <= matrixHoehe - 1; y++) {
+        for (let x = 0; x <= matrixBreite - 1; x++) {
+            matrix.push(led.pointBrightness(x, y))
+        }
+    }
+    RGBLED(1, basic.rgb(0, 255, 0), 500)
+    return matrix
+}
 function RGBLED (num: number, Farbe: number, Pause: number) {
-    for (let index = 0; index < num; index++) {
+    for (let index2 = 0; index2 < num; index2++) {
         basic.pause(Pause)
         basic.setLedColor(Farbe)
         basic.pause(Pause)
         basic.turnRgbLedOff()
     }
 }
+input.onPinTouchEvent(TouchPin.P3, input.buttonEventDown(), function () {
+    if (Modus == "Test") {
+        pins.digitalWritePin(DigitalPin.P3, 1 - pins.digitalReadPin(DigitalPin.P3))
+    }
+})
 function Change_Mode (Mode: string) {
     Modus = "Null"
     basic.showLeds(`
@@ -143,22 +219,37 @@ function Change_Mode (Mode: string) {
     Modus = Mode
 }
 let LDR = 0
+let index = 0
 let Debug = 0
 let YAlt = 0
 let XAlt = 0
 let YAktuell = 0
 let temp = 0
+let gespeichertesBild: number[] = []
+let empfangenesBild: number[] = []
+let empfangAktiv = false
 let Mode_num = 0
 let XAktuell = 0
+let startKey = 0
+let matrixPixelAmount = 0
+let matrixHoehe = 0
+let matrixBreite = 0
 let Schalten2 = 0
 let Schalten1 = 0
 let Modus = ""
+radio.sendNumber(0)
 Modus = "Auto"
 Schalten1 = 10
 Schalten2 = 25
+matrixBreite = 5
+matrixHoehe = 5
+matrixPixelAmount = matrixBreite * matrixHoehe
+startKey = 9999
+radio.setGroup(23)
 basic.forever(function () {
-    if (Modus == "Set_Mode") {
-    	
+    if (Modus == "Test") {
+        basic.showNumber(pins.analogReadPin(AnalogReadWritePin.P2))
+        basic.pause(100)
     } else if (Modus == "Auto") {
         LDR = pins.analogReadPin(AnalogReadWritePin.P2)
         if (Schalten1 > LDR) {
