@@ -4,7 +4,7 @@
 input.onGesture(Gesture.TiltRight, function () {
     if ((Modus == "Set_Var" || Modus == "Send") && !(4 <= XAktuell)) {
         XAktuell += 1
-        Display()
+        Display(false)
     }
 })
 input.onButtonEvent(Button.AB, input.buttonEventValue(ButtonEvent.LongClick), function () {
@@ -61,13 +61,13 @@ input.onButtonEvent(Button.A, input.buttonEventClick(), function () {
     } else if (Modus == "Auto") {
         basic.showNumber(pins.analogReadPin(AnalogReadWritePin.P2))
     } else if (Modus == "Send") {
-        gespeichertesBild = leseLedMatrix()
+        Keep = true
     }
 })
 input.onGesture(Gesture.TiltLeft, function () {
     if ((Modus == "Set_Var" || Modus == "Send") && !(XAktuell <= 0)) {
         XAktuell += -1
-        Display()
+        Display(false)
     }
 })
 function Schreibe_digitalen_Wert (Pin: string, num: number) {
@@ -90,7 +90,7 @@ input.onButtonEvent(Button.AB, input.buttonEventClick(), function () {
             Change_Mode("Auto")
         } else if (Mode_num == 2) {
             Change_Mode("Set_Var")
-            Display()
+            Display(true)
         } else if (Mode_num == 3) {
             Change_Mode("Test")
             Schreibe_digitalen_Wert("P0,P1,P,P3", 1)
@@ -99,7 +99,7 @@ input.onButtonEvent(Button.AB, input.buttonEventClick(), function () {
             basic.showNumber(Mode_num)
         } else if (Mode_num == 5) {
             Change_Mode("Send")
-            Display()
+            Display(true)
         } else if (Mode_num == 6) {
             Change_Mode("Recieve")
         }
@@ -118,22 +118,26 @@ input.onButtonEvent(Button.B, input.buttonEventClick(), function () {
             RGBLED(1, basic.rgb(255, 0, 0), 1000)
         }
     } else if (Modus == "Send") {
+        gespeichertesBild = leseLedMatrix()
         sendeBildUeberFunk(gespeichertesBild)
     }
 })
-function Display () {
+function Display (keep: boolean) {
     if (!(XAlt == XAktuell && YAlt == YAktuell)) {
-        led.unplot(XAlt, YAlt)
+        if (Keep == false) {
+            led.unplot(XAlt, YAlt)
+        } else {
+            Keep = false
+        }
         led.plot(XAktuell, YAktuell)
         XAlt = XAktuell
         YAlt = YAktuell
-        Debug += 1
     }
 }
 input.onGesture(Gesture.LogoDown, function () {
     if ((Modus == "Set_Var" || Modus == "Send") && !(YAktuell <= 0)) {
         YAktuell += -1
-        Display()
+        Display(false)
     }
 })
 input.onPinTouchEvent(TouchPin.P0, input.buttonEventDown(), function () {
@@ -175,7 +179,7 @@ function zeigeGespeichertesBild (matrix: any[]) {
 input.onGesture(Gesture.LogoUp, function () {
     if ((Modus == "Set_Var" || Modus == "Send") && !(4 <= YAktuell)) {
         YAktuell += 1
-        Display()
+        Display(false)
     }
 })
 function leseLedMatrix () {
@@ -220,9 +224,9 @@ function Change_Mode (Mode: string) {
 }
 let LDR = 0
 let index = 0
-let Debug = 0
 let YAlt = 0
 let XAlt = 0
+let Keep = false
 let YAktuell = 0
 let temp = 0
 let gespeichertesBild: number[] = []
