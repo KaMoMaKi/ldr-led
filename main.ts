@@ -61,7 +61,12 @@ input.onButtonEvent(Button.A, input.buttonEventClick(), function () {
     } else if (Modus == "Auto") {
         basic.showNumber(pins.analogReadPin(AnalogReadWritePin.P2))
     } else if (Modus == "Send") {
-        Keep = true
+        if (0 == TempImage[YAktuell * matrixBreite + XAktuell]) {
+            temp = 255
+        } else {
+            temp = 0
+        }
+        TempImage[YAktuell * matrixBreite + XAktuell] = temp
     }
 })
 input.onGesture(Gesture.TiltLeft, function () {
@@ -118,16 +123,14 @@ input.onButtonEvent(Button.B, input.buttonEventClick(), function () {
             RGBLED(1, basic.rgb(255, 0, 0), 1000)
         }
     } else if (Modus == "Send") {
-        gespeichertesBild = leseLedMatrix()
+        gespeichertesBild = TempImage
         sendeBildUeberFunk(gespeichertesBild)
     }
 })
 function Display (keep: boolean) {
     if (!(XAlt == XAktuell && YAlt == YAktuell)) {
-        if (Keep == false) {
+        if (0 == TempImage[YAlt * matrixBreite + XAlt]) {
             led.unplot(XAlt, YAlt)
-        } else {
-            Keep = false
         }
         led.plot(XAktuell, YAktuell)
         XAlt = XAktuell
@@ -221,12 +224,17 @@ function Change_Mode (Mode: string) {
     Schreibe_digitalen_Wert("P0P1P2P3", 0)
     RGBLED(2, basic.rgb(255, 0, 0), 500)
     Modus = Mode
+    TempImage = []
+    temp = 0
+    for (let index2 = 0; index2 < matrixPixelAmount; index2++) {
+        TempImage.push(temp)
+    }
 }
 let LDR = 0
 let index = 0
 let YAlt = 0
 let XAlt = 0
-let Keep = false
+let TempImage: number[] = []
 let YAktuell = 0
 let temp = 0
 let gespeichertesBild: number[] = []
@@ -262,6 +270,13 @@ basic.forever(function () {
             ExternLEDSchalten(1, "P1")
         } else {
             ExternLEDSchalten(3, "P3")
+        }
+    } else if (Modus == "Send") {
+        if (0 == TempImage[YAktuell * matrixBreite + XAktuell]) {
+            basic.pause(500)
+            led.unplot(XAktuell, YAktuell)
+            basic.pause(500)
+            led.plot(XAktuell, YAktuell)
         }
     } else {
         basic.pause(500)
