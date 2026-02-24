@@ -2,9 +2,16 @@
  * Punkt auf LED MATRIX bewegen
  */
 input.onGesture(Gesture.TiltRight, function () {
-    if ((Modus == "Set_Var" || Modus == "Send") && !(4 <= XAktuell)) {
+    if (Modus == "Send" && !(4 <= XAktuell)) {
         XAktuell += 1
         Display(false)
+    }
+})
+input.onButtonEvent(Button.B, input.buttonEventValue(ButtonEvent.LongClick), function () {
+    if (Modus == "Set_Var") {
+        Schalten2 = SetVarWert
+        RGBLED(1, basic.rgb(0, 255, 0), 200)
+        zeigeBinaerZahl(SetVarWert)
     }
 })
 input.onButtonEvent(Button.AB, input.buttonEventValue(ButtonEvent.LongClick), function () {
@@ -51,13 +58,8 @@ input.onButtonEvent(Button.A, input.buttonEventClick(), function () {
         Mode_num += -1
         basic.showNumber(Mode_num)
     } else if (Modus == "Set_Var") {
-        temp = XAktuell + 1 + YAktuell * 5
-        if (temp < Schalten2) {
-            Schalten1 = temp
-            RGBLED(1, basic.rgb(0, 255, 0), 1000)
-        } else {
-            RGBLED(1, basic.rgb(255, 0, 0), 1000)
-        }
+        SetVarWert = Math.max(0, SetVarWert - 1)
+        zeigeBinaerZahl(SetVarWert)
     } else if (Modus == "Auto") {
         basic.showNumber(pins.analogReadPin(AnalogReadWritePin.P2))
     } else if (Modus == "Send") {
@@ -70,7 +72,7 @@ input.onButtonEvent(Button.A, input.buttonEventClick(), function () {
     }
 })
 input.onGesture(Gesture.TiltLeft, function () {
-    if ((Modus == "Set_Var" || Modus == "Send") && !(XAktuell <= 0)) {
+    if (Modus == "Send" && !(XAktuell <= 0)) {
         XAktuell += -1
         Display(false)
     }
@@ -95,7 +97,6 @@ input.onButtonEvent(Button.AB, input.buttonEventClick(), function () {
             Change_Mode("Auto")
         } else if (Mode_num == 2) {
             Change_Mode("Set_Var")
-            Display(true)
         } else if (Mode_num == 3) {
             Change_Mode("Test")
             Schreibe_digitalen_Wert("P0,P1,P,P3", 1)
@@ -115,13 +116,8 @@ input.onButtonEvent(Button.B, input.buttonEventClick(), function () {
         Mode_num += 1
         basic.showNumber(Mode_num)
     } else if (Modus == "Set_Var") {
-        temp = 2 * (XAktuell + 1 + YAktuell * 5)
-        if (temp > Schalten1) {
-            Schalten2 = temp
-            RGBLED(1, basic.rgb(0, 255, 0), 1000)
-        } else {
-            RGBLED(1, basic.rgb(255, 0, 0), 1000)
-        }
+        SetVarWert = Math.min(31, SetVarWert + 1)
+        zeigeBinaerZahl(SetVarWert)
     } else if (Modus == "Send") {
         gespeichertesBild = TempImage
         sendeBildUeberFunk(gespeichertesBild)
@@ -138,7 +134,7 @@ function Display (keep: boolean) {
     }
 }
 input.onGesture(Gesture.LogoDown, function () {
-    if ((Modus == "Set_Var" || Modus == "Send") && !(YAktuell <= 0)) {
+    if (Modus == "Send" && !(YAktuell <= 0)) {
         YAktuell += -1
         Display(false)
     }
@@ -180,11 +176,22 @@ function zeigeGespeichertesBild (matrix: any[]) {
     RGBLED(1, basic.rgb(0, 255, 0), 500)
 }
 input.onGesture(Gesture.LogoUp, function () {
-    if ((Modus == "Set_Var" || Modus == "Send") && !(4 <= YAktuell)) {
+    if (Modus == "Send" && !(4 <= YAktuell)) {
         YAktuell += 1
         Display(false)
     }
 })
+function zeigeBinaerZahl (zahl: number) {
+    led.stopAnimation()
+    basic.clearScreen()
+    for (let bit = 0; bit <= 4; bit++) {
+        if (((zahl >> bit) & 1) == 1) {
+            for (let y = 0; y <= 4; y++) {
+                led.plot(4 - bit, y)
+            }
+        }
+    }
+}
 function leseLedMatrix () {
     let matrix: number[] = []
     for (let y = 0; y <= matrixHoehe - 1; y++) {
@@ -229,7 +236,17 @@ function Change_Mode (Mode: string) {
     for (let index2 = 0; index2 < matrixPixelAmount; index2++) {
         TempImage.push(temp)
     }
+    if (Mode == "Set_Var") {
+        zeigeBinaerZahl(SetVarWert)
+    }
 }
+input.onButtonEvent(Button.A, input.buttonEventValue(ButtonEvent.LongClick), function () {
+    if (Modus == "Set_Var") {
+        Schalten1 = SetVarWert
+        RGBLED(1, basic.rgb(0, 255, 0), 200)
+        zeigeBinaerZahl(SetVarWert)
+    }
+})
 let LDR = 0
 let index = 0
 let YAlt = 0
@@ -237,6 +254,7 @@ let XAlt = 0
 let TempImage: number[] = []
 let YAktuell = 0
 let temp = 0
+let SetVarWert = 0
 let gespeichertesBild: number[] = []
 let empfangenesBild: number[] = []
 let empfangAktiv = false
@@ -253,6 +271,7 @@ radio.sendNumber(0)
 Modus = "Auto"
 Schalten1 = 10
 Schalten2 = 25
+SetVarWert = Schalten1
 matrixBreite = 5
 matrixHoehe = 5
 matrixPixelAmount = matrixBreite * matrixHoehe
